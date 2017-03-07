@@ -1,0 +1,131 @@
+
+参考文件：
+http://clq9761.iteye.com/blog/976029#comments
+
+注意本次的tomcat端口是测试的，为 8888
+
+####axis2的发布和更新配置
+<Tomcat安装目录>\webapps\axis2\WEB-INF\conf\axis2.xml中配置 ture
+热加载： <parameter name="hotdeployment">true</parameter>
+热更新： <parameter name="hotupdate">true</parameter>
+
+####services的应用配置方式：
+使用war包形式的 axis2的tomcat部署
+1.war放到tomcat下能直接运行
+2.想要访问的webservice有三种模式
+
+测试案例类：HelloService.java 方法： sayHello(一个返回) sayHelloToPerson（一个传入一个返回） updateData（一个传入无返回）
+用浏览器访问的传入参数使用 ?name=...
+
+第一、 默认的\webapps\axis2\WEB-INF\pojo 文件夹下的class类
+不带包路径的HelloService
+直接新建 <Tomcat安装目录>\webapps\axis2\WEB-INF\pojo 把 HelloService.class放到下面即可 
+路径：    http://localhost:8888/axis2/services/HelloService/sayHelloToPerson?name=bill
+
+第二、 新建的路径 \webapps\axis2\WEB-INF\my （任意名）
+<Tomcat安装目录>\webapps\axis2\WEB-INF\conf\axis2.xml中配置 相关路径
+<deployer extension=".class" directory="my" class="org.apache.axis2.deployment.POJODeployer" />
+
+
+第三、执行命令生成任意名称的 .aar后缀: jar cvf webs.aar .  把生成的webs.aar（任意名）放到 \webapps\axis2\WEB-INF\services 下
+可以生成任意带包路径的类，注意最后的“.”指的是当前路径
+在任意路径下创建对应的路径如：
+D:\temp\WebService 下创建 
+1.\com\techstar\webservice\HelloService.class
+2.\META-INF\services.xml 注意是复数名称
+在 \WebService下执行命令 ： jar cvf ws.aar .
+
+其中有两种配置路径
+1.  配置一个应用名 RPCMessageReceiver是指类的方法中有返回值，RPCInOnlyMessageReceiver指方法没有返回值
+<?xml version="1.0" encoding="UTF-8"?>
+<service name="HelloServiceNew">
+	<description>
+		Web Service example
+	</description>
+	<parameter name="ServiceClass">
+		com.techstar.webservice.HelloService
+	</parameter>
+	<messageReceivers>
+		<messageReceiver mep="http://www.w3.org/2004/08/wsdl/in-out"
+			class="org.apache.axis2.rpc.receivers.RPCMessageReceiver" />
+		<messageReceiver mep="http://www.w3.org/2004/08/wsdl/in-only"
+			class="org.apache.axis2.rpc.receivers.RPCInOnlyMessageReceiver" />
+	</messageReceivers>
+</service>
+
+2.直接配置方法
+<?xml version="1.0" encoding="UTF-8"?>
+<serviceGroup>
+	<service name="HelloServiceNew">
+		...
+	</service>
+	<service name="HelloServiceNewCope">
+		<description>
+			Cope
+		</description>
+		<parameter name="ServiceClass">
+			com.techstar.webservice.HelloService
+		</parameter>
+		<operation name="sayHello">
+			<messageReceiver class="org.apache.axis2.rpc.receivers.RPCMessageReceiver" />
+		</operation>
+		<operation name="sayHelloToPerson">
+			<messageReceiver class="org.apache.axis2.rpc.receivers.RPCMessageReceiver" />
+		</operation>
+		<operation name="updateData">
+			<messageReceiver class="org.apache.axis2.rpc.receivers.RPCInOnlyMessageReceiver" />
+		</operation>
+	 </service>
+</serviceGroup>
+
+####查看service的WSDL信息
+http://localhost:8888/axis2/services/HelloServiceNew?wsdl
+
+####调用：
+1.浏览器调用
+http://localhost:8888/axis2/services/HelloService/sayHello
+http://localhost:8888/axis2/services/HelloService/sayHelloToPerson?name=bill
+http://localhost:8888/axis2/services/HelloService/updateData
+其他的两个配置
+对应的应用名：  HelloServiceNew HelloServiceNewCope
+
+2.客户端调用
+确定 targetNamespace和url
+查看： http://localhost:8888/axis2/services/HelloService?wsdl 的targetNamespace
+HelloServiceNew
+HelloServiceNewCope
+
+url：
+http://localhost:8888/axis2/services/HelloService
+HelloServiceNew
+HelloServiceNewCope
+
+//1.WebService : 使用RPC方式调用Webservice
+//2.url : 指定抵用WebService的URL
+//3.WSDL和方法 : 指定调用方法以及WSDL文件的命名空间
+//4.输入参数 ：指定调用方法的参数值
+//5.返回值 : 指定调用方法的返回值的数据类型的Class对象
+有返回值使用：invokeBlocking
+无返回值使用：invokeRobust //在tomcat的后台能看到
+
+3.wsdl2java自动生成方式
+%AXIS2_HOME%\bin\wsdl2java -uri http://localhost:8080/axis2/services/HelloService?wsdl -p client -s -o stub
+-url参数指定了wsdl文件的路径，可以是本地路径，也可以是网络路径。
+-p参数指定了生成的Java类的包名，
+-o参数指定了生成的一系列文件保存的根目录。
+在执行完上面的命令后，就会发现在当前目录下多了个stub目录， 在stub/src/client目录可以找到一个HelloServiceStub.java文件，
+该文件复杂调用WebService，可以在程序中直接使用这个类
+
+例子： 在目录D:\temp\WebService\wsdl2java-bat 中cmd 命令
+命令得手动敲，不然一直报错
+wsdl2java -uri http://localhost:8888/axis2/services/HelloServiceNew?wsdl -p TestWsdl2java -s -o study
+
+生成一个类之后，每个方法调用的是其内部类
+
+
+
+
+
+
+
+
